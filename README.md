@@ -5,11 +5,14 @@
 
 ## Workflow
 Input: 
+
 Every User Query in CEval Datasets
 
 ### Stage: Prepare for Retrieve
 Step 1: select sub-domians to retrieve
+
 Step 2: retrieve triples (using question embedding/ topic entity embedding and triple embeddings)
+
 以下脚本完成了Retrieve的功能:
 
     python src/workflow/service-retrieve.py \
@@ -29,18 +32,20 @@ Step 2: retrieve triples (using question embedding/ topic entity embedding and t
         --log_level INFO
 
 参数:
-api_keys可以填一个或者多个api_keys
-ceval_data_path为CEval数据集的路径
-output_path为处理后数据集的输出路径
-triple_data_path为onegraph分类数据
-model_path为使用的embedding模型路径
-other_data_path针对other类型数据的路径
-gpu_ids使用的gpu_id
-max_workers,num_embedding_workers和batch_size为并发数和批处理数
-top_k为每个sample检索回来的三元组数量
+
+    api_keys可以填一个或者多个api_keys
+    ceval_data_path为CEval数据集的路径
+    output_path为处理后数据集的输出路径
+    triple_data_path为onegraph分类数据
+    model_path为使用的embedding模型路径
+    other_data_path针对other类型数据的路径
+    gpu_ids使用的gpu_id
+    max_workers,num_embedding_workers和batch_size为并发数和批处理数
+    top_k为每个sample检索回来的三元组数量
 
 ### Stage: Enrich the Retrieved Triples
 Step 3: enrich the retrieved triples
+
 以下脚本完成Enrich功能:
 
     python src/workflow/service-enrich.py \
@@ -54,12 +59,14 @@ Step 3: enrich the retrieved triples
         --log_level DEBUG
 
 参数:
--i为输入路径,例如:/disk0/lsz/datasets/ceval/ceval-exam-added-triples
--o为输出路径,例如:/disk0/lsz/datasets/ceval/ceval-exam-enrich-triples
--m模式:请选择并行处理parallel,-c为对应的并发数量
+
+    input_dir为输入路径,例如:/disk0/lsz/datasets/ceval/ceval-exam-added-triples
+    output_dir为输出路径,例如:/disk0/lsz/datasets/ceval/ceval-exam-enrich-triples
+    mode模式:请选择并行处理parallel,max_concurrent为对应的并发数量
 
 ### Stage: Reasoning (Not Implemented)
 Step 4: transfer triple format to specific format
+
 Step 5: reasoning
 
 ## Project Structure
