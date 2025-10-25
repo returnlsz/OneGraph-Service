@@ -1,5 +1,10 @@
 # OneGraph Service Workflow
 
+## Enviroments
+
+    conda create -n onegraph python=3.10
+    pip install -r requirements.txt
+    
 ## Datasets
 请提前下载好CEval数据集
 
