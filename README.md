@@ -63,20 +63,20 @@ Step 4: transfer triple format to specific format
 Step 5: reasoning
 
 ## Project Structure
-OneGraph-Service
-|-sorted_data_v1
-|--other
-|-sorted_data_v2
-|--agriculture
-|--engineering_technology
-|--humanities
-|--medicine_health
-|--natural_sciences
-|--social_sciences
-|-src
-|--llm
-|---llm_client.py
-|--workflow
-|---service-enrich.py
-|---service-retrieve.py
-|--utils
+    OneGraph-Service
+    |-sorted_data_v1
+    |--other
+    |-sorted_data_v2
+    |--agriculture
+    |--engineering_technology
+    |--humanities
+    |--medicine_health
+    |--natural_sciences
+    |--social_sciences
+    |-src
+    |--llm
+    |---llm_client.py
+    |--workflow
+    |---service-enrich.py
+    |---service-retrieve.py
+    |--utils
