@@ -351,11 +351,22 @@ class GlobalTripleManager:
                 logger.debug(f"Loading from file: {all_file}")
                 df = pd.read_csv(all_file)
                 for _, row in df.iterrows():
+                    try:
+                        # 先尝试大写的列名
+                        head = str(row['Head'])
+                        relation = str(row['Relation'])
+                        tail = str(row['Tail'])
+                    except KeyError:
+                        # 如果大写失败，尝试小写的列名
+                        head = str(row['head'])
+                        relation = str(row['relation'])
+                        tail = str(row['tail'])
+                    
                     triples.append({
-                        'head': str(row['Head']),
-                        'relation': str(row['Relation']),
-                        'tail': str(row['Tail']),
-                        'text': f"{row['Head']} {row['Relation']} {row['Tail']}"
+                        'head': head,
+                        'relation': relation,
+                        'tail': tail,
+                        'text': f"{head} {relation} {tail}"
                     })
             except Exception as e:
                 logger.error(f"Error loading {all_file}: {e}")
@@ -372,11 +383,22 @@ class GlobalTripleManager:
                         logger.debug(f"Loading from file: {file_path}")
                         df = pd.read_csv(file_path)
                         for _, row in df.iterrows():
+                            try:
+                                # 先尝试大写的列名
+                                head = str(row['Head'])
+                                relation = str(row['Relation'])
+                                tail = str(row['Tail'])
+                            except KeyError:
+                                # 如果大写失败，尝试小写的列名
+                                head = str(row['head'])
+                                relation = str(row['relation'])
+                                tail = str(row['tail'])
+                            
                             triples.append({
-                                'head': str(row['Head']),
-                                'relation': str(row['Relation']),
-                                'tail': str(row['Tail']),
-                                'text': f"{row['Head']} {row['Relation']} {row['Tail']}"
+                                'head': head,
+                                'relation': relation,
+                                'tail': tail,
+                                'text': f"{head} {relation} {tail}"
                             })
                     except Exception as e:
                         logger.error(f"Error loading {os.path.join(subfield_dir, file)}: {e}")
