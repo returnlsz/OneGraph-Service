@@ -2,7 +2,6 @@ import sys
 import os
 import asyncio
 import httpx
-import tiktoken  # 用于计算 token 数量（确保安装：`pip install tiktoken`）
 
 # 添加路径
 sys.path.append(os.path.dirname(os.path.realpath(__file__)) + "/..")
@@ -19,39 +18,32 @@ class llm_client:
         # 如果未提供 api_keys,则使用一个默认的 API Key
         self.api_keys = api_keys or []
         self.model = model  # 模型名称
-        # self.model = "gpt-3.5-turbo-16k"
         self.api_key_index = 0  # 用于跟踪当前正在使用的 API Key
 
     def switch_api_key(self):
         """
         切换到下一个 API Key。如果达到列表末尾,则从头开始循环。
         """
+        if len(self.api_keys) == 0:
+            print("⚠️ 没有可用的 API Key")
+            return
+            
         self.api_key_index = (self.api_key_index + 1) % len(self.api_keys)
-        print(f"切换到新的 API Key: {self.api_keys[self.api_key_index]}")
+        print(f"切换到新的 API Key: {self.api_keys[self.api_key_index][:10]}...")  # 只显示前10个字符
 
     async def response(self, question):
         """
         向 API 发送请求并返回响应。
         :param question: 用户提出的问题
-        :param mode: 模式（例如对 prompt 的不同处理方式）
         :return: 模型生成的响应内容
         """
         url = f"{self.base_url}/chat/completions"
-        retries = 100  # 设置最大重试次数
-
-        # 第一步：计算 `question` 的 token 数量，并判断是否超出阈值
-        encoder = tiktoken.encoding_for_model(self.model)
-        # tokens = encoder.encode(question)
-        
-        # max_token_threshold = 50000
-        # if len(tokens) > max_token_threshold:
-        #     print(f"⚠️ 输入的 token 数量超出阈值 ({max_token_threshold})，将截断内容...")
-        #     # 截断 token 到阈值长度，并解码为字符串
-        #     truncated_tokens = tokens[:max_token_threshold]
-        #     question = encoder.decode(truncated_tokens)
-        #     # print(f"截断后的 `question` 是: {question}")
+        retries = 5  # 减少重试次数，避免无限循环
             
         for attempt in range(retries):
+            if len(self.api_keys) == 0:
+                raise Exception("没有可用的 API Key")
+                
             current_api_key = self.api_keys[self.api_key_index]
             headers = {
                 "Authorization": f"Bearer {current_api_key}",
@@ -66,7 +58,7 @@ class llm_client:
                     }
                 ],
                 "temperature": 0.2,
-                "max_tokens": 1024,
+                "max_tokens": 12800,
                 "top_p": 1,
                 "frequency_penalty": 0,
                 "presence_penalty": 0,
@@ -74,57 +66,63 @@ class llm_client:
             }
 
             try:
-                async with httpx.AsyncClient(timeout=httpx.Timeout(180.0)) as client:
-                    
+                async with httpx.AsyncClient(timeout=httpx.Timeout(60.0)) as client:  # 减少超时时间
                     response = await client.post(url, headers=headers, json=payload)
                     response.raise_for_status()  # 如果状态码不是 2xx，则抛出异常
                     result = response.json()
-                    print("生成内容token长度:",len(encoder.encode(result["choices"][0]["message"]["content"])))
+                    
                     return result["choices"][0]["message"]["content"]  # 返回结果
 
             except httpx.ConnectTimeout:
                 print(f"Attempt {attempt + 1}: 连接超时,正在重试...")
-                self.switch_api_key()  # 切换到下一个 API Key
+                self.switch_api_key()
             except httpx.ReadTimeout:
                 print(f"Attempt {attempt + 1}: 读取超时,正在重试...")
-                self.switch_api_key()  # 切换到下一个 API Key
+                self.switch_api_key()
             except httpx.ConnectError as exc:
                 print(f"Attempt {attempt + 1}: 连接错误 {exc},正在重试...")
-                self.switch_api_key()  # 切换到下一个 API Key
+                self.switch_api_key()
             except httpx.HTTPStatusError as exc:
                 if exc.response.status_code == 403:
-                    print(f"Attempt {attempt + 1}: 权限不足 (403 Forbidden)，可能 API Key 无效或无访问权限，切换 API Key 并重试...")
-                    self.switch_api_key()  # 切换到下一个 API Key
+                    print(f"Attempt {attempt + 1}: 权限不足 (403 Forbidden)，切换 API Key 并重试...")
+                    self.switch_api_key()
                 elif exc.response.status_code == 429:
                     retry_after = exc.response.headers.get("Retry-After")
-                    wait_time = int(retry_after) if retry_after is not None else 5  # 默认等待时间（5秒）
+                    wait_time = int(retry_after) if retry_after is not None else 5
                     print(f"Attempt {attempt + 1}: 请求频率过高 (429 Too Many Requests)，等待 {wait_time} 秒后重试...")
-                    await asyncio.sleep(wait_time)  # 等待指定时间后重试
+                    await asyncio.sleep(wait_time)
                 elif exc.response.status_code == 400:
-                    error_details = exc.response.json()  # 获取详细的错误信息
-                    print(f"Attempt {attempt + 1}: 客户端请求错误 (400 Bad Request): {error_details}")
-                    self.switch_api_key()  # 切换到下一个 API Key
+                    try:
+                        error_details = exc.response.json()
+                        print(f"Attempt {attempt + 1}: 客户端请求错误 (400 Bad Request): {error_details}")
+                    except:
+                        print(f"Attempt {attempt + 1}: 客户端请求错误 (400 Bad Request)")
+                    self.switch_api_key()
                 elif exc.response.status_code == 401:
-                    error_details = exc.response.json()  # 获取详细的错误信息
-                    print(f"Attempt {attempt + 1}: 认证失败 (401 Unauthorized): {error_details}")
+                    try:
+                        error_details = exc.response.json()
+                        print(f"Attempt {attempt + 1}: 认证失败 (401 Unauthorized): {error_details}")
+                    except:
+                        print(f"Attempt {attempt + 1}: 认证失败 (401 Unauthorized)")
                     print("API Key 可能无效或已被撤销，尝试切换 API Key 并重试...")
-                    self.switch_api_key()  # 切换到下一个 API Key
-                elif exc.response.status_code == 413:  # 对 413 错误进行处理
+                    self.switch_api_key()
+                elif exc.response.status_code == 413:
                     print(f"Attempt {attempt + 1}: 请求内容过大 (413 Request Entity Too Large)")
-                    self.switch_api_key()  # 切换到下一个 API Key
-                    # self.max_tokens = max(self.max_tokens - 2000, 1000)  # 减少 max_tokens，但保留最低值为 1000
-                    # print(f"已调整 max_tokens: {self.max_tokens}")
+                    self.switch_api_key()
                 elif 500 <= exc.response.status_code < 600:
                     print(f"Attempt {attempt + 1}: 服务器错误 {exc.response.status_code},正在重试...")
-                    self.switch_api_key()  # 切换到下一个 API Key
+                    self.switch_api_key()
                 else:
-                    print(f"HTTP 错误: {exc.response.status_code}。")
+                    print(f"HTTP 错误: {exc.response.status_code}")
                     raise
             except Exception as exc:
-                print(f"未知错误: {exc},正在重试...")
-                self.switch_api_key()  # 切换到下一个 API Key
+                error_msg = str(exc)
+                print(f"Attempt {attempt + 1}: 未知错误: {error_msg[:200]}...")
+                self.switch_api_key()
+                
+                # 添加延迟避免快速重试
+                await asyncio.sleep(1)
 
-            # 如果达到最大重试次数,则抛出异常
-            if attempt == retries - 1:
-                print(f"最大重试次数已到 ({retries})")
-                raise Exception("请求失败：达到最大重试次数")
+        # 如果达到最大重试次数,则抛出异常
+        print(f"最大重试次数已到 ({retries})")
+        raise Exception("请求失败：达到最大重试次数")

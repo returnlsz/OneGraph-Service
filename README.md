@@ -1,94 +1,41 @@
 # OneGraph Service Workflow
 
+此仓库用于运行OneGraph-V2增强LLMs在CEval上的实验。
+
 ## Enviroments
 
     conda create -n onegraph python=3.10
     pip install -r requirements.txt
     
 ## Datasets
-请提前下载好CEval数据集
+
+CEval: https://huggingface.co/datasets/ceval/ceval-exam
 
 ## Workflow
-Input: 
 
-Every User Query in CEval Datasets
+### Reason within CEval
 
-### Stage: Prepare for Retrieve
-Step 1: select sub-domians to retrieve
+    python src/workflow/service-reason.py \
+    --input-path "/path/to/input" \
+    --output-path "/path/to/output" \
+    --max-triples 10 \
+    --batch-size 100 \
+    --max-concurrent 10 \
+    --api-base-url "https://api.key77qiqi.com/v1" \
+    --api-keys "key1" "key2" "key3" \
+    --api-model "gpt-4o" \
 
-Step 2: retrieve triples (using question embedding/ topic entity embedding and triple embeddings)
+变量说明:
 
-以下脚本完成了Retrieve的功能:
+- input-path为enrich后的数据地址
+- output-path为LLM response保存地址
+- 每个样本retrieve和enrich三元组数量,例如设置为10则包含10个retrieve和10个enrich三元组，共20个三元组
+- batch-size批处理大小
+- max-concurrent调用LLM的最大并发数
+- api-base-url, api-keys, api-model为api信息
 
-    python src/workflow/service-retrieve.py \
-        --api_base_url "https://api.key77qiqi.cn/v1" \
-        --api_keys "key1" "key2" "key3" \
-        --api_model "gpt-4o-mini-2024-07-18" \
-        --ceval_data_path "/disk0/lsz/datasets/ceval/ceval-exam" \
-        --output_path "/disk0/lsz/datasets/ceval/ceval-exam-added-triples" \
-        --triple_data_path "/disk0/lsz/OneGraph/sorted_data_v2" \
-        --model_path "/disk0/lsz/PLMs/sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2" \
-        --other_data_path "/home/lsz/OneGraph/sorted_data_v1/other_all.csv" \
-        --gpu_ids "0,1,2,3" \
-        --max_workers 4 \
-        --batch_size 10 \
-        --num_embedding_workers 4 \
-        --top_k 100 \
-        --log_level INFO
+### Evaluation
 
-参数:
+运行前请自行修改ceval_eval_all.py中的main_dir变量，设置为``Reason within CEval``中的``output-path``.
 
-    api_keys可以填一个或者多个api_keys
-    ceval_data_path为CEval数据集的路径
-    output_path为处理后数据集的输出路径
-    triple_data_path为onegraph分类数据
-    model_path为使用的embedding模型路径
-    other_data_path针对other类型数据的路径
-    gpu_ids使用的gpu_id
-    max_workers,num_embedding_workers和batch_size为并发数和批处理数
-    top_k为每个sample检索回来的三元组数量
-
-### Stage: Enrich the Retrieved Triples
-Step 3: enrich the retrieved triples
-
-以下脚本完成Enrich功能:
-
-    python src/workflow/service-enrich.py \
-        --input_dir "/disk0/lsz/datasets/ceval/ceval-exam-added-triples" \
-        --output_dir "/disk0/lsz/datasets/ceval/ceval-exam-enrich-triples" \
-        --base_url "https://api.key77qiqi.cn/v1" \
-        --api_keys "key1" "key2" \
-        --model "gpt-4o-mini-2024-07-18" \
-        --mode parallel \
-        --max_concurrent 100 \
-        --log_level DEBUG
-
-参数:
-
-    input_dir为输入路径,例如:/disk0/lsz/datasets/ceval/ceval-exam-added-triples
-    output_dir为输出路径,例如:/disk0/lsz/datasets/ceval/ceval-exam-enrich-triples
-    mode模式:请选择并行处理parallel,max_concurrent为对应的并发数量
-
-### Stage: Reasoning (Not Implemented)
-Step 4: transfer triple format to specific format
-
-Step 5: reasoning
-
-## Project Structure
-    OneGraph-Service
-    |-sorted_data_v1
-    |--other
-    |-sorted_data_v2
-    |--agriculture
-    |--engineering_technology
-    |--humanities
-    |--medicine_health
-    |--natural_sciences
-    |--social_sciences
-    |-src
-    |--llm
-    |---llm_client.py
-    |--workflow
-    |---service-enrich.py
-    |---service-retrieve.py
-    |--utils
+    python src/utils/ceval_eval_all.py
